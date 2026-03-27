@@ -45,53 +45,6 @@ jobs:
         name: PyStand-${{ matrix.arch }}-${{ matrix.subsystem }}
         path: build/${{ env.BUILD_TYPE }}
 
-  build-gcc:
-    if: >-
-      github.event.pull_request.draft == false
-
-    runs-on: windows-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        sys: [ mingw32, mingw64 ]
-        subsystem: [ GUI, CLI ]
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Setup WinLibs
-      run: |
-        if ( '${{ matrix.sys }}' -eq 'mingw32' )
-        {
-          Invoke-WebRequest -Uri https://github.com/brechtsanders/winlibs_mingw/releases/download/7.5.0-7.0.0-r1/winlibs-i686-posix-dwarf-gcc-7.5.0-mingw-w64-7.0.0-r1.7z -OutFile ${{ matrix.sys }}.7z
-        }
-        else
-        {
-          Invoke-WebRequest -Uri https://github.com/brechtsanders/winlibs_mingw/releases/download/7.5.0-7.0.0-r1/winlibs-x86_64-posix-seh-gcc-7.5.0-mingw-w64-7.0.0-r1.7z -OutFile ${{ matrix.sys }}.7z
-        }
-        7z x ${{ matrix.sys }}.7z
-        "${{ github.workspace }}\${{ matrix.sys }}\bin" >> $env:GITHUB_PATH
-
-    - name: Configure
-      run: >
-        cmake
-        -G "MinGW Makefiles"
-        -B build
-        -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-        ${{ matrix.subsystem == 'GUI' && '-DPYSTAND_CONSOLE=OFF' || '-DPYSTAND_CONSOLE=ON' }}
-
-    - name: Build
-      run: |
-        cmake --build build --config ${{ env.BUILD_TYPE }}
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: PyStand-${{ matrix.sys }}-${{ matrix.subsystem }}
-        path: build\PyStand.exe
-
   release:
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -115,10 +68,6 @@ jobs:
         PyStand-Win32-GUI
         PyStand-x64-CLI
         PyStand-x64-GUI
-        PyStand-mingw32-CLI
-        PyStand-mingw32-GUI
-        PyStand-mingw64-CLI
-        PyStand-mingw64-GUI
 
     - name: Release
       uses: softprops/action-gh-release@v2

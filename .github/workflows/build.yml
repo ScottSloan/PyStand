@@ -50,7 +50,7 @@ jobs:
 
     runs-on: windows-latest
 
-    needs: [ build-msvc, build-gcc ]
+    needs: [build-msvc]
 
     steps:
     - name: Download artifacts

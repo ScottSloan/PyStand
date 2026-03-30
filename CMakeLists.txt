@@ -26,7 +26,7 @@ if (CMAKE_GENERATOR MATCHES "Visual Studio")
 		$<$<CONFIG:Release>:/MT>
 		$<$<CONFIG:MinSizeRel>:/MT>
 		)
-	target_link_options(PyStand PUBLIC /INCREMENTAL:NO /NODEFAULTLIB:MSVCRT "/MANIFESTUAC:level='requireAdministrator' uiAccess='false'")
+	target_link_options(PyStand PUBLIC /INCREMENTAL:NO /NODEFAULTLIB:MSVCRT)
 else()
 	# for mingw
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_RELEASE} -s")

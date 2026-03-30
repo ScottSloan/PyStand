@@ -18,8 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [ Win32, x64 ]
-        subsystem: [ GUI, CLI ]
+        arch: [ x64 ]
+        subsystem: [ GUI ]
         include:
           - generator: Visual Studio 17 2022
 
@@ -64,9 +64,6 @@ jobs:
         7z
         a
         PyStand-v${{ github.ref_name }}-exe.zip
-        PyStand-Win32-CLI
-        PyStand-Win32-GUI
-        PyStand-x64-CLI
         PyStand-x64-GUI
 
     - name: Release

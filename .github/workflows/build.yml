@@ -56,6 +56,50 @@ jobs:
     - name: Download artifacts
       uses: actions/download-artifact@v4
 
+    - name: Import GPG key
+      shell: pwsh
+      env:
+        GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $env:GNUPGHOME = Join-Path $env:RUNNER_TEMP 'gnupg'
+        New-Item -ItemType Directory -Force -Path $env:GNUPGHOME | Out-Null
+        $keyPath = Join-Path $env:GNUPGHOME 'private-key.asc'
+        Set-Content -Path $keyPath -Value $env:GPG_PRIVATE_KEY -NoNewline
+        gpg --batch --import $keyPath
+
+    - name: Sign executable
+      shell: pwsh
+      env:
+        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $env:GNUPGHOME = Join-Path $env:RUNNER_TEMP 'gnupg'
+        $secretKey = (& gpg --batch --with-colons --list-secret-keys | Where-Object { $_ -like 'fpr:*' } | Select-Object -First 1)
+        if (-not $secretKey) {
+          throw 'No GPG secret key found after import.'
+        }
+        $fingerprint = $secretKey.Split(':')[9]
+        $exe = Get-ChildItem -Path . -Recurse -Filter PyStand.exe | Select-Object -First 1
+        if (-not $exe) {
+          throw 'PyStand.exe not found.'
+        }
+        $signaturePath = "$($exe.FullName).sig"
+        $gpgArgs = @(
+          '--batch'
+          '--yes'
+          '--pinentry-mode', 'loopback'
+          '--local-user', $fingerprint
+          '--armor'
+          '--detach-sign'
+          '--output', $signaturePath
+        )
+        if (-not [string]::IsNullOrWhiteSpace($env:GPG_PASSPHRASE)) {
+          $gpgArgs += @('--passphrase', $env:GPG_PASSPHRASE)
+        }
+        $gpgArgs += $exe.FullName
+        & gpg @gpgArgs
+
     - name: List downloaded files
       run: ls -R
 
@@ -66,6 +110,38 @@ jobs:
         PyStand-v${{ github.ref_name }}-exe.zip
         PyStand-x64-GUI
 
+    - name: Sign archive
+      shell: pwsh
+      env:
+        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $env:GNUPGHOME = Join-Path $env:RUNNER_TEMP 'gnupg'
+        $secretKey = (& gpg --batch --with-colons --list-secret-keys | Where-Object { $_ -like 'fpr:*' } | Select-Object -First 1)
+        if (-not $secretKey) {
+          throw 'No GPG secret key found after import.'
+        }
+        $fingerprint = $secretKey.Split(':')[9]
+        $archive = Get-ChildItem -Path . -Filter 'PyStand*.zip' | Select-Object -First 1
+        if (-not $archive) {
+          throw 'Release archive not found.'
+        }
+        $signaturePath = "$($archive.FullName).sig"
+        $gpgArgs = @(
+          '--batch'
+          '--yes'
+          '--pinentry-mode', 'loopback'
+          '--local-user', $fingerprint
+          '--armor'
+          '--detach-sign'
+          '--output', $signaturePath
+        )
+        if (-not [string]::IsNullOrWhiteSpace($env:GPG_PASSPHRASE)) {
+          $gpgArgs += @('--passphrase', $env:GPG_PASSPHRASE)
+        }
+        $gpgArgs += $archive.FullName
+        & gpg @gpgArgs
+
     - name: Release
       uses: softprops/action-gh-release@v2
       env:
@@ -74,3 +150,4 @@ jobs:
         generate_release_notes: true
         files: |
           PyStand*.zip
+          PyStand*.zip.sig

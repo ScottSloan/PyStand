@@ -146,7 +146,7 @@ bool PyStand::CheckEnviron(const wchar_t *rtp)
 	std::wstring check = _runtime;
 	if (!PathFileExistsW(check.c_str())) {
 		std::wstring msg = L"Missing embedded Python3 in:\n" + check;
-		MessageBoxW(NULL, msg.c_str(), L"ERROR", MB_OK);
+		MessageBoxW(NULL, msg.c_str(), L"ERROR", MB_OK | MB_ICONERROR);
 		return false;
 	}
 
@@ -154,7 +154,7 @@ bool PyStand::CheckEnviron(const wchar_t *rtp)
 	std::wstring check2 = _runtime + L"\\python3.dll";
 	if (!PathFileExistsW(check2.c_str())) {
 		std::wstring msg = L"Missing python3.dll in:\r\n" + check;
-		MessageBoxW(NULL, msg.c_str(), L"ERROR", MB_OK);
+		MessageBoxW(NULL, msg.c_str(), L"ERROR", MB_OK | MB_ICONERROR);
 		return false;
 	}
 
@@ -206,13 +206,13 @@ bool PyStand::LoadPython()
 
 	if (_hDLL == NULL) {
 		std::wstring msg = L"Cannot load python3.dll from:\r\n" + runtime;
-		MessageBoxW(NULL, msg.c_str(), L"ERROR", MB_OK);
+		MessageBoxW(NULL, msg.c_str(), L"ERROR", MB_OK | MB_ICONERROR);
 		return false;
 	}
 	else if (_Py_Main == NULL) {
 		std::wstring msg = L"Cannot find Py_Main() in:\r\n";
 		msg += pydll;
-		MessageBoxW(NULL, msg.c_str(), L"ERROR", MB_OK);
+		MessageBoxW(NULL, msg.c_str(), L"ERROR", MB_OK | MB_ICONERROR);
 		return false;
 	}
 	return true;
@@ -308,7 +308,7 @@ int PyStand::DetectScript()
 			for (int j = 0; j < (int)scripts.size(); j++) {
 				msg += scripts[j] + L"\r\n";
 			}
-			MessageBoxW(NULL, msg.c_str(), L"ERROR", MB_OK);
+			MessageBoxW(NULL, msg.c_str(), L"ERROR", MB_OK | MB_ICONERROR);
 			return -1;
 		}
 	}

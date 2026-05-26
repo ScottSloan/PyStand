@@ -335,7 +335,7 @@ const char *init_script =
 "sys.PYSTAND_SCRIPT = PYSTAND_SCRIPT\n"
 "def MessageBox(msg, info = 'Message'):\n"
 "    import ctypes\n"
-"    ctypes.windll.user32.MessageBoxW(None, str(msg), str(info), 0)\n"
+"    ctypes.windll.user32.MessageBoxW(None, str(msg), str(info), 0 | 0x10)\n"
 "    return 0\n"
 "os.MessageBox = MessageBox\n"
 #ifndef PYSTAND_CONSOLE

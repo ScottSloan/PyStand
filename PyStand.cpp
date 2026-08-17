@@ -339,20 +339,31 @@ const char *init_script =
 "    return 0\n"
 "os.MessageBox = MessageBox\n"
 #ifndef PYSTAND_CONSOLE
-"try:\n"
-"    fd = os.open('CONOUT$', os.O_RDWR | os.O_BINARY)\n"
-"    fp = os.fdopen(fd, 'w')\n"
-"    sys.stdout = fp\n"
-"    sys.stderr = fp\n"
-"    attached = True\n"
-"except Exception as e:\n"
-"    attached = False\n"
+// 标准流的接管必须是"兜底"而不是"无条件"。
+//
+// GUI 子系统的进程默认不带控制台，Python 的 sys.stdout / sys.stderr 会是 None，
+// 此时任何一句 print() 都会抛异常，所以要给它们找个去处（控制台或 devnull）。
+//
+// 但进程由父进程用管道拉起时（例如被 AI 客户端当作 stdio 服务器启动），
+// sys.stdout 本身是有效的、指向那根管道。这种情况下再去接管，就等于把程序
+// 唯一的输出通道换成了 devnull —— 对面只会看到进程活着却一个字节都收不到。
+"if sys.stdout is None or sys.stderr is None:\n"
 "    try:\n"
-"        fp = open(os.devnull, 'w', errors='ignore')\n"
-"        sys.stdout = fp\n"
-"        sys.stderr = fp\n"
-"    except:\n"
-"        pass\n"
+"        fd = os.open('CONOUT$', os.O_RDWR | os.O_BINARY)\n"
+"        fp = os.fdopen(fd, 'w')\n"
+"        if sys.stdout is None: sys.stdout = fp\n"
+"        if sys.stderr is None: sys.stderr = fp\n"
+"        attached = True\n"
+"    except Exception as e:\n"
+"        attached = False\n"
+"        try:\n"
+"            fp = open(os.devnull, 'w', errors='ignore')\n"
+"            if sys.stdout is None: sys.stdout = fp\n"
+"            if sys.stderr is None: sys.stderr = fp\n"
+"        except:\n"
+"            pass\n"
+"else:\n"
+"    attached = True\n"
 #endif
 "for n in ['.', 'lib', 'site-packages', 'runtime']:\n"
 "    test = os.path.abspath(os.path.join(PYSTAND_HOME, n))\n"
@@ -403,9 +414,25 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR args, int show)
 		return 3;
 	}
 #ifndef PYSTAND_CONSOLE
+	// 附加到父进程的控制台，让从终端启动时能看到输出。
+	//
+	// 但 freopen 之前必须先确认这个流没有被父进程重定向过：进程若是被管道
+	// 拉起的（例如当作 stdio 服务器供 AI 客户端调用），fd 1 本来指向那根管道，
+	// 无条件 freopen 会把它改指到控制台 —— 写入照样"成功"，数据却再也到不了
+	// 管道对面，表现为对方一个字节都收不到。
+	//
+	// 重定向过的流，GetFileType 会返回 FILE_TYPE_PIPE 或 FILE_TYPE_DISK；
+	// 未重定向时是 FILE_TYPE_CHAR（控制台）或 FILE_TYPE_UNKNOWN（无句柄）。
 	if (AttachConsole(ATTACH_PARENT_PROCESS)) {
-		freopen("CONOUT$", "w", stdout);
-		freopen("CONOUT$", "w", stderr);
+		DWORD out_type = GetFileType(GetStdHandle(STD_OUTPUT_HANDLE));
+		DWORD err_type = GetFileType(GetStdHandle(STD_ERROR_HANDLE));
+
+		if (out_type != FILE_TYPE_PIPE && out_type != FILE_TYPE_DISK) {
+			freopen("CONOUT$", "w", stdout);
+		}
+		if (err_type != FILE_TYPE_PIPE && err_type != FILE_TYPE_DISK) {
+			freopen("CONOUT$", "w", stderr);
+		}
 		int fd = _fileno(stdout);
 		if (fd >= 0) {
 			std::string fn = std::to_string(fd);
